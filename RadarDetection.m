@@ -3,7 +3,7 @@ clc;
 
 %% Radar Specifications 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Frequency of operatio = 77 GHz
+% Frequency of operation = 77 GHz
 % Max Range = 200m
 % Range Resolution = 1 m
 % Max Velocity = 100 m/s
@@ -20,8 +20,8 @@ c = 3e8;
 % define the target's initial position and velocity. Note : Velocity
 % remains contant
 % Target initial position = 100m and target velocity = 10 m/s
-targetPosInit = 100; 
-targetVel = 10; 
+targetPosInit = 70; 
+targetVel = 50; 
 
 
 %% FMCW Waveform Generation
@@ -47,7 +47,7 @@ Nr=1024;                  %for length of time OR # of range cells
 
 % Timestamp for running the displacement scenario for every sample on each
 % chirp
-t=linspace(0,Nd*Tchirp,Nr*Nd); %total time for samples
+t=linspace(0,Nd*T_chirp,Nr*Nd); %total time for samples
 
 
 %Creating the vectors for Tx, Rx and Mix based on the total samples input.
@@ -65,55 +65,61 @@ td=zeros(1,length(t));
 
 for i=1:length(t)         
     
-    
     % *%TODO* :
     %For each time stamp update the Range of the Target for constant velocity. 
-    targetPos = targetPosInit + i*targetVel; 
-    r_t(i) = targetPos;  
+    targetPos = targetPosInit + t(i)*targetVel; 
+    r_t(i) = targetPos;
+    tau = (2*targetPos) / c; % trip time for the received signal
+    td(i) = tau;
     
     % *%TODO* :
     %For each time sample we need update the transmitted and
     %received signal. 
-    Tx(i) = cos(2*PI*(fc*i + (alpha*i*i)/2)); 
-    tau = (2*targetPos) / c; % trip time for the received signal
-    td(i) = tau; 
-    Rx(i)  = cos(2*PI*(fc*(i - tau) + (alpha*(i - tau)*(i - tau))/2));
+    Tx(i) = cos(2*pi*(fc*t(i) + (alpha*t(i)*t(i))/2)); 
+    Rx(i)  = cos(2*pi*(fc*(t(i) - tau) + (alpha*((t(i) - tau)*(t(i) - tau)))/2));
     
     % *%TODO* :
     %Now by mixing the Transmit and Receive generate the beat signal
     %This is done by element wise matrix multiplication of Transmit and
     %Receiver Signal
-    Mix(i) = Tx.*Rx; 
-    
+    Mix(i) = Tx(i)*Rx(i); 
 end
+
 
 %% RANGE MEASUREMENT
 
 
- % *%TODO* :
+% *%TODO* :
 %reshape the vector into Nr*Nd array. Nr and Nd here would also define the size of
 %Range and Doppler FFT respectively.
+Mix = reshape(Mix, [Nr,Nd]); 
 
- % *%TODO* :
+% *%TODO* :
 %run the FFT on the beat signal along the range bins dimension (Nr) and
 %normalize.
+dim = 1; % for operating along the Nr dimension
+%signal_fft = fft(Mix,[],dim); 
+signal_fft= fft(Mix,Nr);
 
- % *%TODO* :
+
+% *%TODO* :
 % Take the absolute value of FFT output
+signal_fft = abs(signal_fft/Nr); 
 
- % *%TODO* :
+% *%TODO* :
 % Output of FFT is double sided signal, but we are interested in only one side of the spectrum.
 % Hence we throw out half of the samples.
-
+signal_fft = signal_fft(1:Nr/2+1,:); 
 
 %plotting the range
 figure ('Name','Range from First FFT')
 subplot(2,1,1)
 
- % *%TODO* :
- % plot FFT output 
-
- 
+% *%TODO* :
+% plot FFT output 
+r = linspace(0, rangeMax,(Nr/2)+1)*((Nr/2)/rangeMax);
+bin_1 = reshape(signal_fft(:,1),[1,(Nr/2)+1]); 
+plot(r,bin_1); 
 axis ([0 200 0 1]);
 
 
@@ -202,5 +208,5 @@ noise_level = zeros(1,1);
 % *%TODO* :
 %display the CFAR output using the Surf function like we did for Range
 %Doppler Response output.
-figure,surf(doppler_axis,range_axis,'replace this with output');
-colorbar;
+%figure,surf(doppler_axis,range_axis,'replace this with output');
+%colorbar;
